@@ -1,1 +1,1 @@
-# get readay for find job
+# get ready to find a job
