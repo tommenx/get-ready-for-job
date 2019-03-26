@@ -4,7 +4,9 @@
 
 ## go语言包管理机制
 
->  godep
+>  godep 
+
+`curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh`
 
 首先安装好dep，编写程序，正常地引入你需要的包
 
@@ -33,14 +35,14 @@ func main() {
 使用dep进行包管理，首先在这个项目的根目录下执行dep init，进行初始化，会检查当前包引入的的情况，下载包到`./vendor`，并且会生成另外两个引用信息的文件，记录了包的版本等信息
 
 ```shell
-dep init
+dep init -v
 ```
 
 可以将Gopkg.toml和Gopkg.lock作为源码的一部分提交，可以非常容易的进行`rebuild`
 
 > dep ensure
 
-有了`Gopkg.toml`和`Gookg.lock`之后，由于本地的vendor目录并不存在，可以使用这个命令下载vendor下的东西
+有了`Gopkg.toml`和`Gokg.lock`之后，由于本地的vendor目录并不存在，可以使用这个命令下载vendor下的东西
 
 > dep ensure update
 
@@ -119,3 +121,71 @@ go语言发现回收的速度跟不上分配的速度后会暂停用户逻辑，
 
 控制器全程参与并发回收任务，记录相关状态的数据，动态调整运行策略，平衡CPU资源的占用
 
+## 闭包
+
+闭包是指内层函数引用了外层函数中的变量或称为引用了自由变量的函数，其返回值也是一个函数
+
+### 作用
+
+闭包的作用及好处：闭包给访问外部函数定义的内部变量创造了条件。也将关于函数的一切封闭到了函数内部，减少了全局变量
+
+当每次调用函数A时都要改变全局变量B，且B只与A有关。以往没有闭包时只能将B定义为全局变量，现在可以将B定义为A的内部变量，同时在A内部定义闭包C，并将C当值返回
+
+相当于就是带状态的函数，但是上面的理解可能不太正确
+
+##### 举例
+
+```go
+func adder() func(int) int {
+    sum := 0
+    return func(x int) int {
+        sum += x
+        return sum
+    }
+}
+```
+
+每一次操作都会更新一下环境中的sum的值，相当于作为一个全局的变量
+
+#### 坑
+
+```go
+func main() {                
+    s := []string{"a", "b", "c"}                             
+    for _, v := range s { 
+        go func() {
+            fmt.Println(v)
+        }()                 
+    }                        
+    select {}    // 阻塞模式                                                         
+}   
+```
+
+结果为`ccc`，因为在没有将变量 `v` 的拷贝值传进匿名函数之前，只能获取最后一次循环的值,这是新手最容易遇到的坑。
+
+```go
+package main
+
+import (
+    "fmt"
+)
+
+func test() []func() {
+    var s []func()
+
+    for i := 0; i < 3; i++ {
+        s = append(s, func() {  //将多个匿名函数添加到列表
+            fmt.Println(&i, i)
+        })
+    }
+
+    return s    //返回匿名函数列表
+}
+func main() {
+    for _, f := range test() {  //执行所有匿名函数
+        f()   
+    }
+}
+```
+
+每次都只是append到函数的列表中，执行的时候都是最后一个变量i的值，修改可以通过传入一个变量

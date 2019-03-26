@@ -91,3 +91,30 @@ CMD["nginx","-g","daemon off;"]
 docker build -t build/first ./tmp/docker_builder
 ```
 
+### docker 文件系统
+
+AUFS 是一种 Union File System（联合文件系统），就是把不同物理位置的目录合并mount到同一个目录中
+
+```bash
+# 创建一个mount目录
+$ mkdir mnt
+ 
+# 把水果目录和蔬菜目录union mount到 ./mnt目录中
+$ sudo mount -t aufs -o dirs=./fruits:./vegetables none ./mnt
+ 
+#  查看./mnt目录
+$ tree ./mnt
+./mnt
+├── apple
+├── carrots
+└── tomato
+```
+
+- AUFS 是一种联合文件系统，它把若干目录按照顺序和权限 mount 为一个目录并呈现出来
+- 默认情况下，只有第一层（第一个目录）是可写的，其余层是只读的。
+- 增加文件：默认情况下，新增的文件都会被放在最上面的可写层中。
+- 删除文件：因为底下各层都是只读的，当需要删除这些层中的文件时，AUFS 使用 whiteout 机制，它的实现是通过在上层的可写的目录下建立对应的whiteout隐藏文件来实现的。
+- 修改文件：AUFS 利用其 CoW （copy-on-write）特性来修改只读层中的文件。AUFS 工作在文件层面，因此，只要有对只读层中的文件做修改，不管修改数据的量的多少，在第一次修改时，文件都会被拷贝到可写层然后再被修改。
+- 节省空间：AUFS 的 CoW 特性能够允许在多个容器之间共享分层，从而减少物理空间占用。
+- 查找文件：AUFS 的查找性能在层数非常多时会出现下降，层数越多，查找性能越低，因此，在制作 Docker 镜像时要注意层数不要太多。
+- 性能：AUFS 的 CoW 特性在写入大型文件时第一次会出现延迟。
